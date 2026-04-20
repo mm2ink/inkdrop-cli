@@ -1,0 +1,11 @@
+node_modules/
+Desktop.ini
+build/
+dist/
+yarn-error.log*
+.env.local
+yarn-debug.log*
+Thumbs.db
+.DS_Store
+.parcel-cache/
+.next/
