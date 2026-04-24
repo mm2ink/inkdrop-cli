@@ -1,67 +1,45 @@
 # Token Transforms
 
-This directory contains all token transformation modules used by inkdrop-cli.
+This directory contains all token extraction and transformation modules used by inkdrop-cli.
 
 ## Modules
 
-### `index.js`
-Core pipeline: `normalizeNames`, `filterByPrefix`, `stripPrefix`, `applyTransforms`.
+| Module | Description |
+|---|---|
+| `index.js` | Core pipeline: normalize, filter, strip prefix, apply transforms |
+| `alias.js` | Resolve `{token.reference}` aliases within token sets |
+| `scale.js` | Convert `px` values to `rem` using a configurable base |
+| `color.js` | Hex-to-HSL conversion and opacity variant generation |
+| `typography.js` | Extract font family, size, weight, line-height tokens |
+| `shadow.js` | Convert Figma effect shadows to CSS `box-shadow` strings |
+| `border.js` | Extract border width, style, and radius tokens |
+| `gradient.js` | Convert Figma gradient paints to CSS gradient strings |
+| `spacing.js` | Extract spacing/gap values from auto-layout frames |
+| `animation.js` | Map Figma prototype easing and duration to CSS transitions |
+| `opacity.js` | Extract numeric opacity values from Figma nodes and styles |
+| `zindex.js` | Derive z-index ordering from Figma layer stacking |
 
-### `alias.js`
-Resolves `{token.reference}` style aliases within a token set.
-Exports: `isAlias`, `parseAlias`, `resolveAlias`, `resolveAliases`.
+## Usage
 
-### `scale.js`
-Converts `px` values to `rem` and applies numeric scaling.
-Exports: `pxToRem`, `scaleValue`, `applyScaleTransforms`.
-
-### `color.js`
-Color utilities: opacity variants, HSL conversion.
-Exports: `hexToHsl`, `hexWithOpacity`, `applyOpacityVariants`, `applyHslConversion`.
-
-**Usage example:**
-```js
-const { applyOpacityVariants } = require('./color');
-const tokens = { 'color-brand': '#0066cc' };
-const expanded = applyOpacityVariants(tokens, [10, 50, 90]);
-// { 'color-brand': '#0066cc', 'color-brand-10': 'rgba(0,102,204,0.1)', ... }
-```
-
-### `typography.js`
-Extracts typography tokens from Figma text styles.
-Exports: `extractTypographyTokens`, `mapTextCase`, `extractAllTypographyTokens`.
-
-### `shadow.js`
-Converts Figma effect objects to CSS `box-shadow` values.
-Exports: `shadowToCss`, `extractShadowTokens`, `extractAllShadowTokens`.
-
-### `border.js`
-Extracts border/stroke tokens from Figma components.
-Exports: `extractBorderValue`, `extractAllBorderTokens`.
-
-### `gradient.js`
-Converts Figma gradient fills to CSS gradient strings.
-Exports: `gradientStopToCss`, `gradientToCss`, `extractGradientTokens`, `extractAllGradientTokens`.
-
-### `spacing.js`
-Extracts spacing/layout tokens from Figma auto-layout frames.
-Exports: `extractSpacingValue`, `spacingToCss`, `extractAllSpacingTokens`.
-
-### `animation.js`
-Extracts transition/animation tokens from Figma prototype interactions.
-Exports: `mapEasingToCss`, `formatDuration`, `extractAnimationTokens`, `extractAllAnimationTokens`, `walk`.
-
-## Transform Pipeline
-
-All transforms are composed in `index.js` via `applyTransforms(tokens, config)`.
-The `config` object controls which transforms are active:
+Each module exports one or more pure functions. The main pipeline in `index.js`
+compose these transforms based on the active `inkdrop.config.js`.
 
 ```js
-{
-  prefix: 'ds',          // filter and strip token prefix
-  normalize: true,       // kebab-case names
-  resolveAliases: true,  // resolve {alias} references
-  scale: { base: 16 },   // px → rem conversion
-  opacitySteps: [10, 50, 90] // generate opacity variants
-}
+const { applyTransforms } = require('./index');
+
+const outputTokens = applyTransforms(rawTokens, config.transforms);
 ```
+
+## Adding a Transform
+
+1. Create `src/transform/<name>.js` exporting an `extractAll*` function.
+2. Write tests in `src/transform/<name>.test.js`.
+3. Register the transform key in `src/transform/index.js` under `TRANSFORM_MAP`.
+4. Document it in this README.
+
+## Opacity Tokens
+
+The `opacity` module reads either Figma `FILL` styles or traverses the document
+tree looking for `FRAME`, `RECTANGLE`, and `COMPONENT` nodes that carry a
+numeric `opacity` property. Values are clamped to `[0, 1]` and serialised as
+bare numbers (e.g. `0.5`) suitable for CSS `opacity` or `rgba()` usage.
