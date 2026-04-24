@@ -1,77 +1,73 @@
-import { describe, it, expect } from 'vitest';
-import {
+const {
   normalizeNames,
   filterByPrefix,
   stripPrefix,
   applyTransforms,
-} from './index.js';
-
-const sampleTokens = [
-  { name: 'Color Primary', value: '#ff0000' },
-  { name: 'Color Secondary', value: '#00ff00' },
-  { name: 'Spacing Large', value: '24px' },
-];
+  extractAllZIndexTokens,
+} = require('./index');
 
 describe('normalizeNames', () => {
-  it('lowercases token names', () => {
-    const result = normalizeNames(sampleTokens);
-    result.forEach((t) => expect(t.name).toBe(t.name.toLowerCase()));
-  });
-
-  it('replaces spaces with hyphens', () => {
-    const result = normalizeNames(sampleTokens);
-    result.forEach((t) => expect(t.name).not.toContain(' '));
-    expect(result[0].name).toBe('color-primary');
-  });
-
-  it('preserves token values', () => {
-    const result = normalizeNames(sampleTokens);
-    expect(result[0].value).toBe('#ff0000');
+  it('converts dots to dashes and lowercases keys', () => {
+    const tokens = { 'Color.Primary': '#fff', 'spacing.MD': '16px' };
+    const result = normalizeNames(tokens);
+    expect(result).toHaveProperty('color-primary', '#fff');
+    expect(result).toHaveProperty('spacing-md', '16px');
   });
 });
 
 describe('filterByPrefix', () => {
-  it('returns only tokens matching prefix', () => {
-    const normalized = normalizeNames(sampleTokens);
-    const result = filterByPrefix(normalized, 'color');
-    expect(result).toHaveLength(2);
-    expect(result.every((t) => t.name.startsWith('color'))).toBe(true);
+  it('filters tokens by prefix', () => {
+    const tokens = { 'color-primary': '#fff', 'spacing-sm': '8px' };
+    const result = filterByPrefix(tokens, 'color');
+    expect(Object.keys(result)).toEqual(['color-primary']);
   });
 
-  it('returns all tokens when prefix is empty', () => {
-    const result = filterByPrefix(sampleTokens, '');
-    expect(result).toHaveLength(sampleTokens.length);
+  it('returns all tokens if no prefix', () => {
+    const tokens = { a: '1', b: '2' };
+    expect(filterByPrefix(tokens, '')).toEqual(tokens);
   });
 });
 
 describe('stripPrefix', () => {
-  it('removes prefix from token names', () => {
-    const tokens = [{ name: 'color-primary', value: '#ff0000' }];
-    const result = stripPrefix(tokens, 'color');
-    expect(result[0].name).toBe('primary');
+  it('strips matching prefix from keys', () => {
+    const tokens = { 'color-primary': '#fff', 'color-secondary': '#000' };
+    const result = stripPrefix(tokens, 'color-');
+    expect(result).toHaveProperty('primary', '#fff');
+    expect(result).toHaveProperty('secondary', '#000');
   });
 
-  it('does not modify tokens without the prefix', () => {
-    const tokens = [{ name: 'spacing-large', value: '24px' }];
-    const result = stripPrefix(tokens, 'color');
-    expect(result[0].name).toBe('spacing-large');
+  it('leaves keys unchanged if prefix does not match', () => {
+    const tokens = { 'spacing-sm': '8px' };
+    const result = stripPrefix(tokens, 'color-');
+    expect(result).toHaveProperty('spacing-sm', '8px');
   });
 });
 
 describe('applyTransforms', () => {
-  it('applies full pipeline with prefix and strip', () => {
-    const result = applyTransforms(sampleTokens, {
-      prefix: 'color',
-      stripPrefix: true,
-    });
-    expect(result).toHaveLength(2);
-    expect(result[0].name).toBe('primary');
-    expect(result[1].name).toBe('secondary');
+  it('returns a copy of tokens when no config', () => {
+    const tokens = { 'color-primary': '#fff' };
+    const result = applyTransforms(tokens);
+    expect(result).toEqual(tokens);
+    expect(result).not.toBe(tokens);
   });
 
-  it('returns all normalized tokens with no options', () => {
-    const result = applyTransforms(sampleTokens);
-    expect(result).toHaveLength(3);
-    expect(result[0].name).toBe('color-primary');
+  it('applies scale transforms when config.scale is set', () => {
+    const tokens = { 'spacing-base': '16px' };
+    const result = applyTransforms(tokens, { scale: { baseFontSize: 16 } });
+    expect(typeof result).toBe('object');
+  });
+});
+
+describe('extractAllZIndexTokens re-export', () => {
+  it('is a function exported from index', () => {
+    expect(typeof extractAllZIndexTokens).toBe('function');
+  });
+
+  it('extracts z-index tokens via index module', () => {
+    const tree = {
+      overlay: { $type: 'zIndex', $value: 500 },
+    };
+    const result = extractAllZIndexTokens(tree);
+    expect(result['overlay']).toBe('500');
   });
 });

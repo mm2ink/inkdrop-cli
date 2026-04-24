@@ -1,63 +1,84 @@
 /**
- * Token transformation pipeline.
- * Applies a series of named transforms to raw token arrays.
+ * Central transform pipeline: applies all token transformations.
  */
 
+const { applyScaleTransforms } = require('./scale');
+const { resolveAliases } = require('./alias');
+const { extractAllTypographyTokens } = require('./typography');
+const { extractAllShadowTokens } = require('./shadow');
+const { extractAllBorderTokens } = require('./border');
+const { extractAllGradientTokens } = require('./gradient');
+const { extractAllSpacingTokens } = require('./spacing');
+const { extractAllAnimationTokens } = require('./animation');
+const { applyOpacityVariants, applyHslConversion } = require('./color');
+const { extractAllZIndexTokens } = require('./zindex');
+
 /**
- * Normalize token names: lowercase, replace spaces with hyphens.
- * @param {Array<{name: string, value: string}>} tokens
- * @returns {Array<{name: string, value: string}>}
+ * Normalizes token key names (dots to dashes, lowercase).
+ * @param {object} tokens
+ * @returns {object}
  */
-export function normalizeNames(tokens) {
-  return tokens.map((token) => ({
-    ...token,
-    name: token.name.toLowerCase().replace(/\s+/g, '-'),
-  }));
+function normalizeNames(tokens) {
+  return Object.fromEntries(
+    Object.entries(tokens).map(([k, v]) => [k.replace(/\./g, '-').toLowerCase(), v])
+  );
 }
 
 /**
- * Filter tokens by a prefix string.
- * @param {Array<{name: string, value: string}>} tokens
+ * Filters tokens by a given prefix.
+ * @param {object} tokens
  * @param {string} prefix
- * @returns {Array<{name: string, value: string}>}
+ * @returns {object}
  */
-export function filterByPrefix(tokens, prefix) {
+function filterByPrefix(tokens, prefix) {
   if (!prefix) return tokens;
-  return tokens.filter((token) => token.name.startsWith(prefix));
+  return Object.fromEntries(
+    Object.entries(tokens).filter(([k]) => k.startsWith(prefix))
+  );
 }
 
 /**
- * Strip a prefix from all token names.
- * @param {Array<{name: string, value: string}>} tokens
+ * Strips a prefix from all token keys.
+ * @param {object} tokens
  * @param {string} prefix
- * @returns {Array<{name: string, value: string}>}
+ * @returns {object}
  */
-export function stripPrefix(tokens, prefix) {
+function stripPrefix(tokens, prefix) {
   if (!prefix) return tokens;
-  return tokens.map((token) => ({
-    ...token,
-    name: token.name.startsWith(prefix)
-      ? token.name.slice(prefix.length).replace(/^[-/]/, '')
-      : token.name,
-  }));
+  return Object.fromEntries(
+    Object.entries(tokens).map(([k, v]) => [k.startsWith(prefix) ? k.slice(prefix.length) : k, v])
+  );
 }
 
 /**
- * Run the full transform pipeline based on config options.
- * @param {Array<{name: string, value: string}>} tokens
- * @param {{ prefix?: string, stripPrefix?: boolean }} options
- * @returns {Array<{name: string, value: string}>}
+ * Applies all configured transforms to a flat token map.
+ * @param {object} tokens - flat token map
+ * @param {object} config - transform config
+ * @returns {object}
  */
-export function applyTransforms(tokens, options = {}) {
-  let result = normalizeNames(tokens);
+function applyTransforms(tokens, config = {}) {
+  let result = { ...tokens };
 
-  if (options.prefix) {
-    result = filterByPrefix(result, options.prefix);
+  if (config.resolveAliases !== false) {
+    result = resolveAliases(result);
   }
-
-  if (options.stripPrefix && options.prefix) {
-    result = stripPrefix(result, options.prefix);
+  if (config.scale) {
+    result = applyScaleTransforms(result, config.scale);
+  }
+  if (config.opacityVariants) {
+    result = applyOpacityVariants(result, config.opacityVariants);
+  }
+  if (config.hsl) {
+    result = applyHslConversion(result);
   }
 
   return result;
 }
+
+module.exports = {
+  normalizeNames,
+  filterByPrefix,
+  stripPrefix,
+  applyTransforms,
+  extractAllZIndexTokens,
+};
