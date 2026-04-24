@@ -19,6 +19,10 @@ describe('flatToNested', () => {
     const flat = { primary: '#ff0000' };
     expect(flatToNested(flat)).toEqual({ primary: '#ff0000' });
   });
+
+  it('returns empty object for empty input', () => {
+    expect(flatToNested({})).toEqual({});
+  });
 });
 
 describe('tokensToJson', () => {
@@ -42,9 +46,19 @@ describe('tokensToJson', () => {
     expect(() => tokensToJson(null)).toThrow('tokens must be a non-null object');
   });
 
+  it('throws for array input', () => {
+    expect(() => tokensToJson([])).toThrow('tokens must be a non-null object');
+  });
+
   it('respects custom indent', () => {
     const tokens = { a: '1' };
     const result = tokensToJson(tokens, { indent: 4 });
     expect(result).toContain('    "a"');
+  });
+
+  it('uses 2-space indent by default', () => {
+    const tokens = { a: '1' };
+    const result = tokensToJson(tokens);
+    expect(result).toContain('  "a"');
   });
 });
