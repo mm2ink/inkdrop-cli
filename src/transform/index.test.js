@@ -3,71 +3,81 @@ const {
   filterByPrefix,
   stripPrefix,
   applyTransforms,
-  extractAllZIndexTokens,
 } = require('./index');
 
 describe('normalizeNames', () => {
-  it('converts dots to dashes and lowercases keys', () => {
-    const tokens = { 'Color.Primary': '#fff', 'spacing.MD': '16px' };
-    const result = normalizeNames(tokens);
-    expect(result).toHaveProperty('color-primary', '#fff');
-    expect(result).toHaveProperty('spacing-md', '16px');
+  it('lowercases token keys', () => {
+    expect(normalizeNames({ 'Color/Primary': '#fff' })).toEqual({
+      'colorprimary': '#fff',
+    });
+  });
+
+  it('replaces spaces and slashes with dashes', () => {
+    expect(normalizeNames({ 'font size/base': '16px' })).toEqual({
+      'font-size-base': '16px',
+    });
+  });
+
+  it('removes non-alphanumeric characters except dashes and underscores', () => {
+    expect(normalizeNames({ 'color.primary!': '#000' })).toEqual({
+      'colorprimary': '#000',
+    });
   });
 });
 
 describe('filterByPrefix', () => {
+  const tokens = {
+    'color-primary': '#fff',
+    'color-secondary': '#000',
+    'spacing-base': '8px',
+  };
+
   it('filters tokens by prefix', () => {
-    const tokens = { 'color-primary': '#fff', 'spacing-sm': '8px' };
-    const result = filterByPrefix(tokens, 'color');
-    expect(Object.keys(result)).toEqual(['color-primary']);
+    const result = filterByPrefix(tokens, 'color-');
+    expect(Object.keys(result)).toEqual(['color-primary', 'color-secondary']);
   });
 
-  it('returns all tokens if no prefix', () => {
-    const tokens = { a: '1', b: '2' };
+  it('returns all tokens when no prefix given', () => {
     expect(filterByPrefix(tokens, '')).toEqual(tokens);
   });
 });
 
 describe('stripPrefix', () => {
-  it('strips matching prefix from keys', () => {
-    const tokens = { 'color-primary': '#fff', 'color-secondary': '#000' };
+  const tokens = {
+    'color-primary': '#fff',
+    'color-secondary': '#000',
+    'spacing-base': '8px',
+  };
+
+  it('strips the prefix from matching keys', () => {
     const result = stripPrefix(tokens, 'color-');
-    expect(result).toHaveProperty('primary', '#fff');
-    expect(result).toHaveProperty('secondary', '#000');
+    expect(result['primary']).toBe('#fff');
+    expect(result['secondary']).toBe('#000');
+    expect(result['spacing-base']).toBe('8px');
   });
 
-  it('leaves keys unchanged if prefix does not match', () => {
-    const tokens = { 'spacing-sm': '8px' };
-    const result = stripPrefix(tokens, 'color-');
-    expect(result).toHaveProperty('spacing-sm', '8px');
+  it('returns tokens unchanged when no prefix given', () => {
+    expect(stripPrefix(tokens, '')).toEqual(tokens);
   });
 });
 
 describe('applyTransforms', () => {
-  it('returns a copy of tokens when no config', () => {
-    const tokens = { 'color-primary': '#fff' };
-    const result = applyTransforms(tokens);
-    expect(result).toEqual(tokens);
-    expect(result).not.toBe(tokens);
+  it('applies normalizeNames by default', () => {
+    const tokens = { 'Color Primary': '#fff' };
+    const result = applyTransforms(tokens, {});
+    expect(result['color-primary']).toBe('#fff');
   });
 
-  it('applies scale transforms when config.scale is set', () => {
-    const tokens = { 'spacing-base': '16px' };
-    const result = applyTransforms(tokens, { scale: { baseFontSize: 16 } });
-    expect(typeof result).toBe('object');
-  });
-});
-
-describe('extractAllZIndexTokens re-export', () => {
-  it('is a function exported from index', () => {
-    expect(typeof extractAllZIndexTokens).toBe('function');
+  it('skips normalizeNames when disabled', () => {
+    const tokens = { 'Color Primary': '#fff' };
+    const result = applyTransforms(tokens, { normalizeNames: false });
+    expect(result['Color Primary']).toBe('#fff');
   });
 
-  it('extracts z-index tokens via index module', () => {
-    const tree = {
-      overlay: { $type: 'zIndex', $value: 500 },
-    };
-    const result = extractAllZIndexTokens(tree);
-    expect(result['overlay']).toBe('500');
+  it('applies prefix filter', () => {
+    const tokens = { 'color-a': '1', 'spacing-b': '2' };
+    const result = applyTransforms(tokens, { prefix: 'color-' });
+    expect(result['color-a']).toBe('1');
+    expect(result['spacing-b']).toBeUndefined();
   });
 });
