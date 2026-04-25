@@ -1,31 +1,38 @@
-/**
- * Central transform pipeline: applies all token transformations.
- */
+'use strict';
 
 const { applyScaleTransforms } = require('./scale');
 const { resolveAliases } = require('./alias');
 const { extractAllTypographyTokens } = require('./typography');
 const { extractAllShadowTokens } = require('./shadow');
-const { extractAllBorderTokens } = require('./border');
 const { extractAllGradientTokens } = require('./gradient');
 const { extractAllSpacingTokens } = require('./spacing');
 const { extractAllAnimationTokens } = require('./animation');
 const { applyOpacityVariants, applyHslConversion } = require('./color');
 const { extractAllZIndexTokens } = require('./zindex');
+const { extractAllOpacityTokens } = require('./opacity');
+const { extractAllBreakpointTokens } = require('./breakpoint');
+const { extractAllRadiusTokens } = require('./radius');
+const { extractAllGridTokens } = require('./grid');
+const { extractAllMotionTokens } = require('./motion');
+const { extractAllElevationTokens } = require('./elevation');
+const { extractAllSizeTokens } = require('./size');
 
 /**
- * Normalizes token key names (dots to dashes, lowercase).
+ * Normalize token names to kebab-case
  * @param {object} tokens
  * @returns {object}
  */
 function normalizeNames(tokens) {
   return Object.fromEntries(
-    Object.entries(tokens).map(([k, v]) => [k.replace(/\./g, '-').toLowerCase(), v])
+    Object.entries(tokens).map(([k, v]) => [
+      k.replace(/[_\s]+/g, '-').replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase(),
+      v,
+    ])
   );
 }
 
 /**
- * Filters tokens by a given prefix.
+ * Filter tokens by prefix
  * @param {object} tokens
  * @param {string} prefix
  * @returns {object}
@@ -38,7 +45,7 @@ function filterByPrefix(tokens, prefix) {
 }
 
 /**
- * Strips a prefix from all token keys.
+ * Strip a prefix from token keys
  * @param {object} tokens
  * @param {string} prefix
  * @returns {object}
@@ -46,21 +53,27 @@ function filterByPrefix(tokens, prefix) {
 function stripPrefix(tokens, prefix) {
   if (!prefix) return tokens;
   return Object.fromEntries(
-    Object.entries(tokens).map(([k, v]) => [k.startsWith(prefix) ? k.slice(prefix.length) : k, v])
+    Object.entries(tokens).map(([k, v]) => [
+      k.startsWith(prefix) ? k.slice(prefix.length) : k,
+      v,
+    ])
   );
 }
 
 /**
- * Applies all configured transforms to a flat token map.
- * @param {object} tokens - flat token map
- * @param {object} config - transform config
+ * Apply all configured transforms to a token set
+ * @param {object} tokens
+ * @param {object} config
  * @returns {object}
  */
 function applyTransforms(tokens, config = {}) {
   let result = { ...tokens };
 
-  if (config.resolveAliases !== false) {
+  if (config.resolveAliases) {
     result = resolveAliases(result);
+  }
+  if (config.normalizeNames) {
+    result = normalizeNames(result);
   }
   if (config.scale) {
     result = applyScaleTransforms(result, config.scale);
@@ -80,5 +93,17 @@ module.exports = {
   filterByPrefix,
   stripPrefix,
   applyTransforms,
+  extractAllTypographyTokens,
+  extractAllShadowTokens,
+  extractAllGradientTokens,
+  extractAllSpacingTokens,
+  extractAllAnimationTokens,
   extractAllZIndexTokens,
+  extractAllOpacityTokens,
+  extractAllBreakpointTokens,
+  extractAllRadiusTokens,
+  extractAllGridTokens,
+  extractAllMotionTokens,
+  extractAllElevationTokens,
+  extractAllSizeTokens,
 };
